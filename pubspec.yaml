@@ -1,0 +1,48 @@
+name: flutter_shop
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Librerías generales
+  provider: ^6.1.2
+  shared_preferences: ^2.2.3
+  cached_network_image: ^3.3.1
+  intl: ^0.19.0
+  google_fonts: ^6.2.1
+
+  # Backend: Firebase
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  firebase_messaging: ^15.1.3
+
+  # Pagos: Stripe (NUEVO)
+  flutter_stripe: ^10.1.1
+  http: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # Herramientas de desarrollo
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
+
+# Configuración de Iconos
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/logofluter.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icon/logofluter.png"
+
+flutter:
+  uses-material-design: true
