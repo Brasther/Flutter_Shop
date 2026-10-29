@@ -6,7 +6,12 @@ import '../widgets/product_card.dart';
 import '../screens/product_detail_screen.dart';
 
 class SearchProductDelegate extends SearchDelegate<Product?> {
+  SearchProductDelegate() {
+    _suggestionsFuture = _productService.getProducts();
+  }
+
   final ProductService _productService = ProductService();
+  late final Future<List<Product>> _suggestionsFuture;
 
   @override
   String get searchFieldLabel => 'Buscar producto...';
@@ -33,18 +38,24 @@ class SearchProductDelegate extends SearchDelegate<Product?> {
 
   @override
   Widget buildResults(BuildContext context) {
-    // Cuando el usuario da "Enter" o busca
     if (query.trim().isEmpty) {
       return const Center(child: Text('Ingresa un término de búsqueda'));
     }
+    return _results(context, query);
+  }
 
+  Widget _results(BuildContext context, String value) {
     return FutureBuilder<List<Product>>(
-      future: _productService.searchProducts(query),
+      future: _productService.searchProducts(value),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        
+
+        if (snapshot.hasError) {
+          return const Center(
+              child: Text('No se pudieron cargar los resultados.'));
+        }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(
             child: Column(
@@ -57,7 +68,6 @@ class SearchProductDelegate extends SearchDelegate<Product?> {
           );
         }
 
-        // Reutilizamos el ProductCard en una lista
         return GridView.builder(
           padding: const EdgeInsets.all(16),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -72,7 +82,6 @@ class SearchProductDelegate extends SearchDelegate<Product?> {
             return ProductCard(
               product: product,
               onTap: () {
-                // Navegamos al detalle y cerramos la búsqueda
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -89,7 +98,39 @@ class SearchProductDelegate extends SearchDelegate<Product?> {
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    // Sugerencias mientras escribe (podemos dejarlo vacío o mostrar historial)
-    return Container();
+    final normalized = query.trim().toLowerCase();
+    return FutureBuilder<List<Product>>(
+      future: _suggestionsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final suggestions = (snapshot.data ?? ProductService.demoProducts)
+            .where((product) =>
+                normalized.isEmpty ||
+                product.name.toLowerCase().contains(normalized) ||
+                product.category.toLowerCase().contains(normalized) ||
+                product.description.toLowerCase().contains(normalized))
+            .take(6)
+            .toList();
+        if (suggestions.isEmpty) {
+          return const Center(child: Text('No encontramos sugerencias.'));
+        }
+        return ListView(
+          children: suggestions
+              .map((product) => ListTile(
+                    leading: Icon(
+                        normalized.isEmpty ? Icons.trending_up : Icons.search),
+                    title: Text(product.name),
+                    subtitle: Text(product.category),
+                    onTap: () {
+                      query = product.name;
+                      showResults(context);
+                    },
+                  ))
+              .toList(),
+        );
+      },
+    );
   }
 }

@@ -1,74 +1,68 @@
-// lib/src/providers/orders_provider.dart
-import 'package:flutter/material.dart';
-// CORRECCIÓN AQUÍ: Agregamos "hide Order" para evitar el conflicto con la clase de Google
-import 'package:cloud_firestore/cloud_firestore.dart' hide Order; 
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/cart_item.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/material.dart';
 import '../models/order.dart';
 
 class OrdersProvider extends ChangeNotifier {
-  List<Order> _orders = [];
-  
-  // Instancias de Firebase
-  final _db = FirebaseFirestore.instance;
-  
-  List<Order> get orders => [..._orders];
+  final List<Order> _orders = [];
+  String? _loadedUid;
+  List<Order> get orders => List.unmodifiable(_orders);
+  String? _error;
+  String? get error => _error;
 
-  // 1. CARGAR PEDIDOS (Solo los míos)
   Future<void> fetchOrders() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return; // Seguridad
-
-    try {
-      final snapshot = await _db
-          .collection('orders')
-          .where('userId', isEqualTo: user.uid) // FILTRO CLAVE
-          // .orderBy('dateTime', descending: true) // <--- COMENTADO TEMPORALMENTE
-          .get();
-
-      _orders = snapshot.docs.map((doc) {
-        return Order.fromMap(doc.data(), doc.id);
-      }).toList();
-      
+    if (user == null) {
+      _orders.clear();
+      _error = null;
+      _loadedUid = null;
       notifyListeners();
-    } catch (e) {
-      print('Error cargando pedidos: $e');
+      return;
     }
+    if (_loadedUid != user.uid) {
+      // Never show a previously signed-in user's cached orders to a new user.
+      _orders.clear();
+      _error = null;
+      _loadedUid = user.uid;
+    }
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      _orders
+        ..clear()
+        ..addAll(snapshot.docs.map((doc) => Order.fromMap(doc.data(), doc.id)))
+        ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      _error = null;
+    } on FirebaseException catch (e) {
+      _error = e.message ?? 'No se pudieron cargar tus pedidos.';
+    }
+    notifyListeners();
   }
 
-  // 2. CREAR NUEVO PEDIDO
-  Future<void> addOrder(List<CartItem> cartProducts, double total) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final timestamp = DateTime.now();
-    
-    // Creamos el objeto Order temporalmente
-    final newOrder = Order(
-      id: '', 
-      amount: total,
-      products: cartProducts,
-      dateTime: timestamp,
-    );
-
+  Future<void> fetchAllAdminOrders() async {
     try {
-      // Guardamos en la Nube
-      final docRef = await _db.collection('orders').add(
-        newOrder.toMap(user.uid)
-      );
-
-      // Agregamos a la lista local para que se vea instantáneo en la UI
-      _orders.insert(0, Order(
-        id: docRef.id,
-        amount: total,
-        products: cartProducts,
-        dateTime: timestamp,
-      ));
-      
-      notifyListeners();
-    } catch (e) {
-      print('Error creando pedido: $e');
-      rethrow; 
+      final snapshot =
+          await FirebaseFirestore.instance.collection('orders').get();
+      _orders
+        ..clear()
+        ..addAll(snapshot.docs.map((doc) => Order.fromMap(doc.data(), doc.id)))
+        ..sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      _error = null;
+      _loadedUid = '__admin__';
+    } on FirebaseException catch (e) {
+      _error = e.message ?? 'No se pudieron cargar los pedidos.';
     }
+    notifyListeners();
+  }
+
+  Future<void> advanceOrder(String orderId, String status) async {
+    await FirebaseFunctions.instance.httpsCallable('updateOrderStatus').call({
+      'orderId': orderId,
+      'status': status,
+    });
+    await fetchAllAdminOrders();
   }
 }

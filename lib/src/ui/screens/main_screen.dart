@@ -47,16 +47,18 @@ class _MainScreenState extends State<MainScreen> {
             selectedIcon: Icon(Icons.storefront),
             label: 'Tienda',
           ),
-          
+
           // Icono del Carrito con Badge (Globito rojo)
           NavigationDestination(
-            icon: cartItemCount > 0 
-              ? Badge(label: Text('$cartItemCount'), child: const Icon(Icons.shopping_cart_outlined))
-              : const Icon(Icons.shopping_cart_outlined),
+            icon: cartItemCount > 0
+                ? Badge(
+                    label: Text('$cartItemCount'),
+                    child: const Icon(Icons.shopping_cart_outlined))
+                : const Icon(Icons.shopping_cart_outlined),
             selectedIcon: const Icon(Icons.shopping_cart),
             label: 'Carrito',
           ),
-          
+
           const NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),

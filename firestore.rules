@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function validProduct() {
+      return request.resource.data.keys().hasOnly([
+          'id', 'name', 'description', 'price', 'imageUrl', 'category', 'stock', 'reservedStock', 'active', 'variantOptions'
+        ])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.description is string
+        && request.resource.data.price is number
+        && request.resource.data.price > 0
+        && request.resource.data.imageUrl is string
+        && request.resource.data.category is string
+        && request.resource.data.stock is int
+        && request.resource.data.stock >= 0
+        && request.resource.data.get('reservedStock', 0) is int
+        && request.resource.data.get('variantOptions', {}) is map
+        && request.resource.data.get('active', true) is bool;
+    }
+
+    match /products/{productId} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && validProduct()
+        && request.resource.data.get('reservedStock', 0) == 0;
+      allow update: if isAdmin()
+        && validProduct()
+        && request.resource.data.get('reservedStock', 0) == resource.data.get('reservedStock', 0)
+        && request.resource.data.stock >= resource.data.get('reservedStock', 0);
+      allow delete: if isAdmin() && resource.data.get('reservedStock', 0) == 0;
+    }
+
+    match /orders/{orderId} {
+      allow read: if signedIn() && (isAdmin() || resource.data.userId == request.auth.uid);
+      // Only trusted Cloud Functions may write orders after verifying Stripe.
+      allow create, update, delete: if false;
+    }
+
+    match /checkoutSessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /coupons/{couponCode} {
+      allow read: if signedIn();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'code', 'discountType', 'value', 'active', 'minSubtotal', 'maxUses',
+          'usedCount', 'reservedUses', 'startsAt', 'expiresAt'
+        ])
+        && request.resource.data.code == couponCode
+        && request.resource.data.discountType in ['percent', 'fixed']
+        && request.resource.data.value is number
+        && request.resource.data.value > 0
+        && request.resource.data.active is bool
+        && request.resource.data.minSubtotal is number
+        && request.resource.data.minSubtotal >= 0
+        && request.resource.data.maxUses is int
+        && request.resource.data.maxUses >= 0
+        && request.resource.data.get('reservedUses', 0) == 0
+        && request.resource.data.get('usedCount', 0) == 0
+        && (request.resource.data.get('startsAt', null) == null || request.resource.data.startsAt is timestamp)
+        && (request.resource.data.get('expiresAt', null) == null || request.resource.data.expiresAt is timestamp);
+      allow update: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'code', 'discountType', 'value', 'active', 'minSubtotal', 'maxUses',
+          'usedCount', 'reservedUses', 'startsAt', 'expiresAt'
+        ])
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.get('usedCount', 0) == resource.data.get('usedCount', 0)
+        && request.resource.data.get('reservedUses', 0) == resource.data.get('reservedUses', 0)
+        && request.resource.data.discountType in ['percent', 'fixed']
+        && request.resource.data.value is number
+        && request.resource.data.value > 0
+        && request.resource.data.active is bool
+        && request.resource.data.minSubtotal is number
+        && request.resource.data.minSubtotal >= 0
+        && request.resource.data.maxUses is int
+        && request.resource.data.maxUses >= 0
+        && (request.resource.data.get('startsAt', null) == null || request.resource.data.startsAt is timestamp)
+        && (request.resource.data.get('expiresAt', null) == null || request.resource.data.expiresAt is timestamp);
+      allow delete: if isAdmin() && resource.data.get('reservedUses', 0) == 0;
+    }
+
+    match /users/{userId}/addresses/{addressId} {
+      allow read, delete: if signedIn() && request.auth.uid == userId;
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['fullName', 'address', 'createdAt', 'updatedAt'])
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() >= 3
+        && request.resource.data.address is string
+        && request.resource.data.address.size() >= 8;
+    }
+
+    match /mail/{mailId} {
+      allow read, write: if false;
+    }
+  }
+}

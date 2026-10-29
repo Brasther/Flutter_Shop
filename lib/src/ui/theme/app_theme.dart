@@ -4,9 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Definimos colores constantes para evitar "magic colors" dispersos
-  static const Color primaryColor = Color(0xFF00C569); 
+  static const Color primaryColor = Color(0xFF00C569);
   static const Color darkColor = Color(0xFF1A1A1A);
-  
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
@@ -14,7 +14,8 @@ class AppTheme {
         seedColor: primaryColor,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF5F5F5), // Gris muy claro para fondo
+      scaffoldBackgroundColor:
+          const Color(0xFFF5F5F5), // Gris muy claro para fondo
       textTheme: GoogleFonts.poppinsTextTheme(), // Fuente moderna y legible
       appBarTheme: const AppBarTheme(
         centerTitle: true,

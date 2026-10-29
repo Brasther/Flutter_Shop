@@ -1,91 +1,90 @@
-// lib/src/providers/auth_provider.dart
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // <--- LIBRERÍA REAL
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider extends ChangeNotifier {
-  // Instancia oficial de Firebase Auth
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
-  bool _isLoading = false;
+  bool _isLoading = true;
   bool get isLoading => _isLoading;
-
-  // Obtener el usuario actual (si existe)
   User? get currentUser => _auth.currentUser;
+  bool get isAuthenticated => currentUser != null;
 
-  // 1. Verificar sesión al iniciar la app
   Future<void> checkLoginStatus() async {
-    // Firebase guarda la sesión automáticamente, pero esperamos un poco para el Splash
-    await Future.delayed(const Duration(seconds: 1)); 
-    notifyListeners();
-  }
-
-  // Helper para saber si está logueado
-  bool get isAuthenticated => _auth.currentUser != null;
-
-  // 2. INICIAR SESIÓN (LOGIN)
-  Future<String?> login(String email, String password) async {
-    _isLoading = true;
-    notifyListeners();
-
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: email.trim(), 
-        password: password.trim()
-      );
+      await _auth.authStateChanges().first;
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return null; // Null significa "Sin errores"
-    } on FirebaseAuthException catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return _mapFirebaseError(e); // Retornamos el error en español
     }
   }
 
-  // 3. REGISTRARSE (SIGN UP)
-  Future<String?> register(String email, String password) async {
+  Future<String?> login(String email, String password) => _runAuth(
+        () => _auth.signInWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        ),
+      );
+
+  Future<String?> register(String email, String password) => _runAuth(
+        () => _auth.createUserWithEmailAndPassword(
+          email: email.trim(),
+          password: password,
+        ),
+      );
+
+  Future<String?> _runAuth(Future<UserCredential> Function() action) async {
     _isLoading = true;
     notifyListeners();
-
     try {
-      await _auth.createUserWithEmailAndPassword(
-        email: email.trim(), 
-        password: password.trim()
-      );
+      await action();
+      return null;
+    } catch (error) {
+      return _mapError(error);
+    } finally {
       _isLoading = false;
       notifyListeners();
-      return null; // Éxito
-    } on FirebaseAuthException catch (e) {
-      _isLoading = false;
-      notifyListeners();
-      return _mapFirebaseError(e);
     }
   }
 
-  // 4. CERRAR SESIÓN
+  Future<String?> sendPasswordReset(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      return null;
+    } catch (error) {
+      return _mapError(error);
+    }
+  }
+
   Future<void> logout() async {
     await _auth.signOut();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // Limpiamos datos locales también
+    await prefs.remove('cart_items');
     notifyListeners();
   }
 
-  // Traducir errores de Firebase a Español
-  String _mapFirebaseError(FirebaseAuthException e) {
-    switch (e.code) {
+  String _mapError(Object error) {
+    if (error is! FirebaseAuthException) {
+      return 'No pudimos completar la solicitud. Revisa tu conexión.';
+    }
+    switch (error.code) {
       case 'user-not-found':
-        return 'No existe un usuario con ese correo.';
       case 'wrong-password':
-        return 'Contraseña incorrecta.';
+      case 'invalid-credential':
+        return 'El correo o la contraseña no son correctos.';
       case 'email-already-in-use':
         return 'Este correo ya está registrado.';
       case 'invalid-email':
-        return 'El formato del correo es inválido.';
+        return 'El formato del correo no es válido.';
       case 'weak-password':
-        return 'La contraseña es muy débil (usa 6+ caracteres).';
+        return 'La contraseña debe tener al menos 6 caracteres.';
+      case 'too-many-requests':
+        return 'Demasiados intentos. Espera un momento e inténtalo de nuevo.';
+      case 'network-request-failed':
+        return 'No hay conexión. Revisa tu internet e inténtalo de nuevo.';
+      case 'operation-not-allowed':
+        return 'Activa Email/contraseña en Firebase Authentication.';
       default:
-        return 'Error de autenticación: ${e.message}';
+        return 'Error de autenticación. Revisa los ajustes de Firebase.';
     }
   }
 }

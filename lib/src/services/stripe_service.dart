@@ -1,78 +1,78 @@
-// lib/src/services/stripe_service.dart
-import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/material.dart';
 
+/// Payment Sheet client. A trusted backend must create PaymentIntents and
+/// provide the client secret; secret API keys must never be stored in the app.
 class StripeService {
-  // TUS CLAVES REALES (¡Cuidado con espacios extra!)
-  static const String _publishableKey = '';
-  static const String _secretKey = '';
-
-  // Inicializamos Stripe
-  static void init() {
-    // CORRECCIÓN: Así se asigna la clave pública en las versiones nuevas
-    Stripe.publishableKey = _publishableKey;
+  static void init({required String publishableKey}) {
+    Stripe.publishableKey = publishableKey;
   }
 
-  // --- FLUJO PRINCIPAL DE PAGO ---
-  static Future<bool> makePayment(String amount, String currency) async {
-    try {
-      // 1. Pedirle a Stripe que prepare el cobro (Payment Intent)
-      final paymentIntent = await _createPaymentIntent(amount, currency);
-      if (paymentIntent == null) return false;
+  /// Presents Stripe's Payment Sheet for a PaymentIntent created by a backend.
+  /// Returns false only when the user cancels; other failures are surfaced.
+  static Future<bool> presentPaymentSheet({
+    required String paymentIntentClientSecret,
+    String merchantDisplayName = 'Flutter Shop',
+  }) async {
+    if (paymentIntentClientSecret.trim().isEmpty) {
+      throw ArgumentError.value(
+        paymentIntentClientSecret,
+        'paymentIntentClientSecret',
+        'Debe provenir de un backend seguro.',
+      );
+    }
 
-      // 2. Configurar la hoja de pago visual
+    try {
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
-          paymentIntentClientSecret: paymentIntent['client_secret'],
-          merchantDisplayName: 'Mi Tienda Flutter',
+          paymentIntentClientSecret: paymentIntentClientSecret,
+          merchantDisplayName: merchantDisplayName,
           style: ThemeMode.system,
         ),
       );
-
-      // 3. Mostrar la hoja de pago al usuario
       await Stripe.instance.presentPaymentSheet();
-      
-      // Si llegamos aquí sin errores, el pago fue exitoso
-      return true; 
-
-    } catch (e) {
-      print('Error procesando el pago: $e');
-      if (e is StripeException) {
-        print('Error de Stripe: ${e.error.localizedMessage}');
-      }
-      return false;
+      return true;
+    } on StripeException catch (error) {
+      if (error.error.code == FailureCode.Canceled) return false;
+      rethrow;
     }
   }
 
-  // --- SIMULACIÓN DE BACKEND ---
-  static Future<Map<String, dynamic>?> _createPaymentIntent(String amount, String currency) async {
-    try {
-      final url = Uri.parse('https://api.stripe.com/v1/payment_intents');
-      
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $_secretKey',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: {
-          'amount': amount,
-          'currency': currency,
-          // 'payment_method_types[]': 'card', // Ya no es necesario enviarlo así en versiones nuevas
-        },
-      );
+  static bool get isConfigured =>
+      const String.fromEnvironment('STRIPE_PUBLISHABLE_KEY').startsWith('pk_');
 
-      if (response.statusCode == 200) {
-        return json.decode(response.body);
-      } else {
-        print('Error de API Stripe: ${response.body}');
-        return null;
-      }
-    } catch (e) {
-      print('Error de conexión con Stripe: $e');
-      return null;
+  static Future<String?> checkout({
+    required List<Map<String, dynamic>> items,
+    required String fullName,
+    required String address,
+    String couponCode = '',
+  }) async {
+    if (!isConfigured) {
+      throw StateError('Falta STRIPE_PUBLISHABLE_KEY para activar los pagos.');
     }
+    final response = await FirebaseFunctions.instance
+        .httpsCallable('createPaymentIntent')
+        .call({
+      'items': items,
+      'shipping': {'fullName': fullName, 'address': address},
+      'couponCode': couponCode,
+    });
+    final payload = Map<String, dynamic>.from(response.data as Map);
+    final clientSecret = payload['clientSecret'] as String?;
+    final paymentIntentId = payload['paymentIntentId'] as String?;
+    if (clientSecret == null || paymentIntentId == null) {
+      throw StateError('El servidor devolvió una sesión de pago incompleta.');
+    }
+
+    final paid = await presentPaymentSheet(
+      paymentIntentClientSecret: clientSecret,
+    );
+    if (!paid) return null;
+
+    final confirmation = await FirebaseFunctions.instance
+        .httpsCallable('confirmPayment')
+        .call({'paymentIntentId': paymentIntentId});
+    return (confirmation.data as Map)['orderId'] as String?;
   }
 }

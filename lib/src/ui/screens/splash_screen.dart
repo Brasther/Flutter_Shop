@@ -1,4 +1,3 @@
-// lib/src/ui/screens/splash_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -13,52 +12,46 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  bool _started = false;
+
   @override
   void initState() {
     super.initState();
-    // Apenas carga la pantalla, le decimos al AuthProvider que verifique
-    // Usamos addPostFrameCallback para asegurar que el contexto esté listo
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthProvider>().checkLoginStatus();
+      if (mounted) context.read<AuthProvider>().checkLoginStatus();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Escuchamos los cambios del AuthProvider
     final auth = context.watch<AuthProvider>();
-
-    // Si terminó de cargar, decidimos a dónde ir
-    if (!auth.isLoading) {
-      // Truco: Usamos un Future microtask para navegar apenas se pueda
-      Future.microtask(() {
+    if (!auth.isLoading && !_started) {
+      _started = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => 
+            builder: (_) =>
                 auth.isAuthenticated ? const MainScreen() : const LoginScreen(),
           ),
         );
       });
     }
-
     return Scaffold(
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: Theme.of(context).colorScheme.primary,
       body: const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.shopping_bag, size: 100, color: Colors.white),
-            SizedBox(height: 20),
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: 20),
-            Text(
-              'Cargando tu tienda...',
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            )
-          ],
-        ),
-      ),
+          child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.shopping_bag, size: 96, color: Colors.white),
+          SizedBox(height: 20),
+          CircularProgressIndicator(color: Colors.white),
+          SizedBox(height: 20),
+          Text('Cargando tu tienda…',
+              style: TextStyle(color: Colors.white, fontSize: 18)),
+        ],
+      )),
     );
   }
 }
