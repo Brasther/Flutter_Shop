@@ -18,6 +18,7 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final Map<String, String> _selectedVariants = {};
+  bool _showAddedConfirmation = false;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +31,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const BackButton(color: Colors.black),
+        leading: BackButton(color: Theme.of(context).colorScheme.onSurface),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -45,8 +46,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: CachedNetworkImage(
                   imageUrl: product.imageUrl,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) =>
-                      Container(color: Colors.grey[200]),
+                  placeholder: (context, url) => Container(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                  ),
                   errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
@@ -57,8 +61,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               offset: const Offset(0, -20), // Efecto de solapamiento
               child: Container(
                 padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
                 ),
                 child: Column(
@@ -70,7 +74,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         width: 50,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
+                          color: Theme.of(context).colorScheme.outlineVariant,
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
@@ -113,7 +117,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: 8),
                     Text(
                       product.description,
-                      style: TextStyle(color: Colors.grey[600], height: 1.5),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
                     ),
                     if (product.variantOptions.isNotEmpty) ...[
                       const SizedBox(height: 20),
@@ -207,7 +214,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -234,6 +241,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                     if (!context.mounted) return;
 
+                    if (added) {
+                      setState(() => _showAddedConfirmation = true);
+                      Future<void>.delayed(const Duration(milliseconds: 1400),
+                          () {
+                        if (mounted) {
+                          setState(() => _showAddedConfirmation = false);
+                        }
+                      });
+                    }
+
                     // 2. Mostramos confirmación visual
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -255,9 +272,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text(
-              'Agregar al Carrito',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            child: AnimatedSwitcher(
+              duration: MediaQuery.of(context).disableAnimations
+                  ? Duration.zero
+                  : const Duration(milliseconds: 220),
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: ScaleTransition(scale: animation, child: child),
+              ),
+              child: Row(
+                key: ValueKey(_showAddedConfirmation),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(_showAddedConfirmation
+                      ? Icons.check_circle_outline
+                      : Icons.add_shopping_cart),
+                  const SizedBox(width: 8),
+                  Text(
+                    _showAddedConfirmation
+                        ? 'Agregado al carrito'
+                        : 'Agregar al carrito',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

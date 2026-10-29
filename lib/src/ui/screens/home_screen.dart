@@ -232,6 +232,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         final product = visible[index];
                         return ProductCard(
                           product: product,
+                          animationDelay: MediaQuery.of(context)
+                                  .disableAnimations
+                              ? Duration.zero
+                              : Duration(
+                                  milliseconds:
+                                      (index * 45).clamp(0, 450).toInt(),
+                                ),
                           onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -259,7 +266,11 @@ class _MessageState extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 56, color: Colors.grey),
+          Icon(
+            icon,
+            size: 56,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 12),
           Text(title),
           if (action != null) action!,

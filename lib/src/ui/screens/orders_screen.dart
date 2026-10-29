@@ -51,7 +51,11 @@ class _OrdersScreenState extends State<OrdersScreen> {
             if (provider.orders.isEmpty) {
               return const Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.receipt_long_outlined, size: 60, color: Colors.grey),
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 60,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 SizedBox(height: 10),
                 Text('Aún no tienes pedidos.'),
               ]));

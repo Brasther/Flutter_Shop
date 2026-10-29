@@ -22,8 +22,11 @@ class CartScreen extends StatelessWidget {
         if (cart.items.isEmpty) {
           return Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.shopping_bag_outlined,
-                size: 72, color: Colors.grey),
+            Icon(
+              Icons.shopping_bag_outlined,
+              size: 72,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 12),
             Text('Tu carrito está vacío',
                 style: Theme.of(context).textTheme.titleLarge),
@@ -79,9 +82,22 @@ class CartScreen extends StatelessWidget {
                                   cart.setQuantity(item.id, item.quantity - 1),
                               icon: const Icon(Icons.remove_circle_outline),
                               visualDensity: VisualDensity.compact),
-                          Text('${item.quantity}',
+                          AnimatedSwitcher(
+                            duration: MediaQuery.of(context).disableAnimations
+                                ? Duration.zero
+                                : const Duration(milliseconds: 180),
+                            transitionBuilder: (child, animation) =>
+                                ScaleTransition(
+                              scale: animation,
+                              child: child,
+                            ),
+                            child: Text(
+                              '${item.quantity}',
+                              key: ValueKey(item.quantity),
                               style:
-                                  const TextStyle(fontWeight: FontWeight.bold)),
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
                           IconButton(
                               onPressed: cart.canIncrement(item.id)
                                   ? () => cart.setQuantity(
@@ -107,12 +123,16 @@ class CartScreen extends StatelessWidget {
               top: false,
               child: Container(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                decoration: BoxDecoration(color: Colors.white, boxShadow: [
-                  BoxShadow(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
                       color: Colors.black.withValues(alpha: .06),
                       blurRadius: 12,
-                      offset: const Offset(0, -4))
-                ]),
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,

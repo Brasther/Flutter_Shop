@@ -10,6 +10,7 @@ import 'package:flutter_shop/src/providers/cart_provider.dart';
 import 'package:flutter_shop/src/providers/auth_provider.dart';
 import 'package:flutter_shop/src/providers/orders_provider.dart';
 import 'package:flutter_shop/src/providers/favorites_provider.dart';
+import 'package:flutter_shop/src/providers/theme_provider.dart';
 import 'package:flutter_shop/src/services/stripe_service.dart';
 import 'package:flutter_shop/src/ui/screens/splash_screen.dart';
 
@@ -52,12 +53,18 @@ class FlutterShopApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => OrdersProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MaterialApp(
-        title: 'FlutterShop',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        home: const SplashScreen(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) => MaterialApp(
+          title: 'FlutterShop',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeProvider.themeMode,
+          themeAnimationDuration: const Duration(milliseconds: 260),
+          home: const SplashScreen(),
+        ),
       ),
     );
   }

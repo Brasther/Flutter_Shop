@@ -52,7 +52,17 @@ class _MainScreenState extends State<MainScreen> {
           NavigationDestination(
             icon: cartItemCount > 0
                 ? Badge(
-                    label: Text('$cartItemCount'),
+                    label: AnimatedSwitcher(
+                      duration: MediaQuery.of(context).disableAnimations
+                          ? Duration.zero
+                          : const Duration(milliseconds: 180),
+                      transitionBuilder: (child, animation) =>
+                          ScaleTransition(scale: animation, child: child),
+                      child: Text(
+                        '$cartItemCount',
+                        key: ValueKey(cartItemCount),
+                      ),
+                    ),
                     child: const Icon(Icons.shopping_cart_outlined))
                 : const Icon(Icons.shopping_cart_outlined),
             selectedIcon: const Icon(Icons.shopping_cart),

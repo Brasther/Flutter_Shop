@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/theme_provider.dart';
 import 'admin_dashboard_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_products_screen.dart';
@@ -94,6 +95,17 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ])
                   : const SizedBox.shrink(),
+            ),
+            SwitchListTile.adaptive(
+              secondary: Icon(Theme.of(context).brightness == Brightness.dark
+                  ? Icons.dark_mode_outlined
+                  : Icons.light_mode_outlined),
+              title: const Text('Modo oscuro'),
+              subtitle: const Text('Guarda tu preferencia en este dispositivo'),
+              value: Theme.of(context).brightness == Brightness.dark,
+              onChanged: (enabled) => context.read<ThemeProvider>().setThemeMode(
+                enabled ? ThemeMode.dark : ThemeMode.light,
+              ),
             ),
             const Divider(indent: 16, endIndent: 16),
             ListTile(
